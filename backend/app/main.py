@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.db import Base, SessionLocal, engine
-from app.routers import admin, auth, dashboard, quotes, reference
+from app.routers import admin, alba, auth, dashboard, quotes, reference
 from app.seed import seed_data
 
 app = FastAPI(title=settings.project_name)
@@ -34,3 +34,4 @@ app.include_router(dashboard.router, prefix=settings.api_v1_prefix)
 app.include_router(quotes.router, prefix=settings.api_v1_prefix)
 app.include_router(reference.router, prefix=settings.api_v1_prefix)
 app.include_router(admin.router, prefix=settings.api_v1_prefix)
+app.include_router(alba.router, prefix=settings.api_v1_prefix)

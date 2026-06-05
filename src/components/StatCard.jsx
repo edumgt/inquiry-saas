@@ -1,9 +1,9 @@
 export default function StatCard({ label, value, hint }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-xs uppercase tracking-[0.18em] text-slate-500">{label}</p>
-      <p className="mt-3 font-display text-3xl font-semibold text-slate-900">{value}</p>
-      <p className="mt-2 text-sm text-slate-500">{hint}</p>
+    <div className="g-card">
+      <p className="text-xs font-medium text-g-muted">{label}</p>
+      <p className="mt-2 text-2xl font-medium text-g-on-surface">{value}</p>
+      <p className="mt-1 text-sm text-g-secondary">{hint}</p>
     </div>
   );
 }

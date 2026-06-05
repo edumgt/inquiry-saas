@@ -1,7 +1,9 @@
+from datetime import UTC, datetime, timedelta
+
 from sqlalchemy.orm import Session
 
 from app.core.security import get_password_hash
-from app.models import ExchangeRate, Quote, TariffRate, User, VehicleSpec
+from app.models import AlbaApplication, AlbaJob, ExchangeRate, Quote, TariffRate, User, VehicleSpec
 from app.services.quote_calculator import QuoteInput, calculate_quote
 from app.utils import generate_quote_no
 
@@ -221,9 +223,105 @@ def _seed_quotes(db: Session) -> None:
     db.commit()
 
 
+def _seed_alba(db: Session) -> None:
+    if db.query(AlbaJob).count() > 0:
+        return
+
+    admin_user = db.query(User).filter(User.role == 'admin').first()
+    if not admin_user:
+        return
+
+    today = datetime.now(UTC).date()
+    jobs_data = [
+        {
+            'job_no': 'ALB-260605-0001',
+            'title': '롯데월드타워 행사 도우미',
+            'location': '서울 송파구 올림픽로 300',
+            'job_date': str(today + timedelta(days=3)),
+            'start_time': '09:00',
+            'end_time': '18:00',
+            'headcount': 5,
+            'wage_per_hour': 12000,
+            'job_type': '행사도우미',
+            'description': '브랜드 팝업 행사 안내 및 고객 응대 업무입니다.',
+            'status': 'open',
+        },
+        {
+            'job_no': 'ALB-260605-0002',
+            'title': '마포 물류센터 포장 작업',
+            'location': '서울 마포구 월드컵로 10길',
+            'job_date': str(today + timedelta(days=1)),
+            'start_time': '08:00',
+            'end_time': '17:00',
+            'headcount': 8,
+            'wage_per_hour': 11500,
+            'job_type': '포장/분류',
+            'description': '소형 가전 제품 포장 및 라벨 부착 작업.',
+            'status': 'open',
+        },
+        {
+            'job_no': 'ALB-260605-0003',
+            'title': '강남 사무실 이사 도우미',
+            'location': '서울 강남구 테헤란로 152',
+            'job_date': str(today - timedelta(days=2)),
+            'start_time': '08:00',
+            'end_time': '16:00',
+            'headcount': 3,
+            'wage_per_hour': 13000,
+            'job_type': '이사/운반',
+            'description': '사무용 가구 및 장비 이동 보조 업무.',
+            'status': 'completed',
+        },
+        {
+            'job_no': 'ALB-260605-0004',
+            'title': '여의도 공원 청소 용역',
+            'location': '서울 영등포구 여의공원로 68',
+            'job_date': str(today + timedelta(days=7)),
+            'start_time': '06:00',
+            'end_time': '12:00',
+            'headcount': 10,
+            'wage_per_hour': 10500,
+            'job_type': '청소/환경',
+            'description': '주말 행사 후 공원 환경 정비 작업.',
+            'status': 'open',
+        },
+    ]
+
+    jobs = []
+    for data in jobs_data:
+        job = AlbaJob(created_by=admin_user.id, **data)
+        db.add(job)
+        jobs.append(job)
+    db.commit()
+    for job in jobs:
+        db.refresh(job)
+
+    applications_data = [
+        {'job': jobs[0], 'worker_name': '김민준', 'worker_contact': '010-1234-5678', 'status': 'accepted', 'worked_hours': None},
+        {'job': jobs[0], 'worker_name': '이서연', 'worker_contact': '010-2345-6789', 'status': 'pending', 'worked_hours': None},
+        {'job': jobs[1], 'worker_name': '박지후', 'worker_contact': '010-3456-7890', 'status': 'accepted', 'worked_hours': None},
+        {'job': jobs[1], 'worker_name': '최수아', 'worker_contact': '010-4567-8901', 'status': 'rejected', 'worked_hours': None},
+        {'job': jobs[2], 'worker_name': '정도윤', 'worker_contact': '010-5678-9012', 'status': 'accepted', 'worked_hours': 8.0},
+        {'job': jobs[2], 'worker_name': '강하은', 'worker_contact': '010-6789-0123', 'status': 'accepted', 'worked_hours': 8.0},
+        {'job': jobs[2], 'worker_name': '윤시우', 'worker_contact': '010-7890-1234', 'status': 'accepted', 'worked_hours': 7.5},
+    ]
+
+    for a in applications_data:
+        app = AlbaApplication(
+            job_id=a['job'].id,
+            worker_name=a['worker_name'],
+            worker_contact=a['worker_contact'],
+            status=a['status'],
+            worked_hours=a['worked_hours'],
+        )
+        db.add(app)
+    db.commit()
+
+
 def seed_data(db: Session) -> None:
     _seed_users(db)
     _seed_vehicles(db)
     _seed_exchange_rate(db)
     _seed_tariffs(db)
     _seed_quotes(db)
+    _seed_alba(db)

@@ -92,3 +92,40 @@ class Quote(Base):
 
     user = relationship('User', back_populates='quotes')
     vehicle = relationship('VehicleSpec')
+
+
+class AlbaJob(Base):
+    __tablename__ = 'alba_jobs'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    job_no: Mapped[str] = mapped_column(String(40), unique=True, nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    location: Mapped[str] = mapped_column(String(200), nullable=False)
+    job_date: Mapped[str] = mapped_column(String(20), nullable=False)
+    start_time: Mapped[str] = mapped_column(String(10), nullable=False)
+    end_time: Mapped[str] = mapped_column(String(10), nullable=False)
+    headcount: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    wage_per_hour: Mapped[int] = mapped_column(Integer, nullable=False)
+    job_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default='open')
+    created_by: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+
+    created_by_user = relationship('User')
+    applications = relationship('AlbaApplication', back_populates='job', cascade='all, delete-orphan')
+
+
+class AlbaApplication(Base):
+    __tablename__ = 'alba_applications'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    job_id: Mapped[int] = mapped_column(ForeignKey('alba_jobs.id'), nullable=False)
+    worker_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    worker_contact: Mapped[str] = mapped_column(String(50), nullable=False)
+    note: Mapped[str] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default='pending')
+    worked_hours: Mapped[float] = mapped_column(Float, nullable=True)
+    applied_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(UTC))
+
+    job = relationship('AlbaJob', back_populates='applications')

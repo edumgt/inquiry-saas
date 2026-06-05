@@ -122,3 +122,81 @@ class DashboardSummary(BaseModel):
     avg_quote_usd: float
     lcl_ratio_pct: float
     latest_quotes: list[QuoteResponse]
+
+
+class AlbaApplicationResponse(BaseModel):
+    id: int
+    job_id: int
+    worker_name: str
+    worker_contact: str
+    note: str | None
+    status: str
+    worked_hours: float | None
+    applied_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AlbaJobResponse(BaseModel):
+    id: int
+    job_no: str
+    title: str
+    location: str
+    job_date: str
+    start_time: str
+    end_time: str
+    headcount: int
+    wage_per_hour: int
+    job_type: str
+    description: str | None
+    status: str
+    created_by: int
+    created_at: datetime
+    applications: list[AlbaApplicationResponse] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AlbaJobCreate(BaseModel):
+    title: str = Field(min_length=2, max_length=200)
+    location: str = Field(min_length=2, max_length=200)
+    job_date: str
+    start_time: str
+    end_time: str
+    headcount: int = Field(ge=1)
+    wage_per_hour: int = Field(ge=9860)
+    job_type: str
+    description: str | None = None
+
+
+class AlbaJobUpdate(BaseModel):
+    title: str | None = None
+    location: str | None = None
+    job_date: str | None = None
+    start_time: str | None = None
+    end_time: str | None = None
+    headcount: int | None = None
+    wage_per_hour: int | None = None
+    job_type: str | None = None
+    description: str | None = None
+    status: str | None = None
+
+
+class AlbaApplicationCreate(BaseModel):
+    worker_name: str = Field(min_length=1, max_length=100)
+    worker_contact: str = Field(min_length=1, max_length=50)
+    note: str | None = None
+
+
+class AlbaApplicationUpdate(BaseModel):
+    status: str | None = None
+    worked_hours: float | None = None
+
+
+class AlbaDashboardSummary(BaseModel):
+    total_jobs: int
+    open_jobs: int
+    total_applications: int
+    accepted_applications: int
+    total_settlement_krw: int
+    recent_jobs: list[AlbaJobResponse]

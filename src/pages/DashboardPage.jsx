@@ -24,38 +24,23 @@ export default function DashboardPage() {
         setError(err.message || 'Failed to load dashboard');
       }
     };
-
     load();
   }, [token]);
 
   const stats = useMemo(() => {
     if (!summary) return [];
     return [
-      {
-        label: 'Total Quotes',
-        value: summary.total_quotes,
-        hint: 'All issued quotations in current scope',
-      },
-      {
-        label: 'This Month',
-        value: summary.quotes_this_month,
-        hint: 'Quotes generated in this month',
-      },
-      {
-        label: 'Average Quote',
-        value: usd.format(summary.avg_quote_usd || 0),
-        hint: 'Mean final quoted amount (USD)',
-      },
-      {
-        label: 'LCL Ratio',
-        value: `${summary.lcl_ratio_pct}%`,
-        hint: 'Share of LCL among all quotes',
-      },
+      { label: 'Total Quotes', value: summary.total_quotes, hint: 'All issued quotations' },
+      { label: 'This Month', value: summary.quotes_this_month, hint: 'Quotes this month' },
+      { label: 'Average Quote', value: usd.format(summary.avg_quote_usd || 0), hint: 'Mean quoted amount (USD)' },
+      { label: 'LCL Ratio', value: `${summary.lcl_ratio_pct}%`, hint: 'Share of LCL quotes' },
     ];
   }, [summary]);
 
   if (error) {
-    return <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</div>;
+    return (
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-600">{error}</div>
+    );
   }
 
   return (
@@ -67,50 +52,75 @@ export default function DashboardPage() {
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="font-display text-xl font-semibold text-slate-900">Latest quotations</h2>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-sm">
+        {/* Latest quotes table */}
+        <div className="g-card p-0 overflow-hidden">
+          <div className="px-5 py-4 border-b border-g-outline">
+            <h2 className="text-base font-medium text-g-on-surface">Latest Quotations</h2>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-xs uppercase tracking-[0.15em] text-slate-500">
-                  <th className="px-3 py-2">Quote No</th>
-                  <th className="px-3 py-2">Route</th>
-                  <th className="px-3 py-2">Mode</th>
-                  <th className="px-3 py-2">USD</th>
+                <tr className="border-b border-g-outline bg-g-surface">
+                  <th className="px-5 py-3 text-xs font-medium text-g-muted">Quote No</th>
+                  <th className="px-5 py-3 text-xs font-medium text-g-muted">Route</th>
+                  <th className="px-5 py-3 text-xs font-medium text-g-muted">Mode</th>
+                  <th className="px-5 py-3 text-xs font-medium text-g-muted">USD</th>
                 </tr>
               </thead>
               <tbody>
                 {summary?.latest_quotes?.map((quote) => (
-                  <tr key={quote.id} className="border-b border-slate-100 text-slate-700">
-                    <td className="px-3 py-2 font-medium text-slate-900">{quote.quote_no}</td>
-                    <td className="px-3 py-2">{quote.origin} → {quote.destination_region}</td>
-                    <td className="px-3 py-2">{quote.service_mode}</td>
-                    <td className="px-3 py-2">{usd.format(quote.final_usd)}</td>
+                  <tr key={quote.id} className="border-b border-g-outline last:border-0 transition hover:bg-g-surface">
+                    <td className="px-5 py-3 font-mono text-xs font-medium text-g-blue">{quote.quote_no}</td>
+                    <td className="px-5 py-3 text-g-secondary">{quote.origin} → {quote.destination_region}</td>
+                    <td className="px-5 py-3">
+                      <span className="rounded-full border border-g-outline bg-g-surface px-2 py-0.5 text-xs text-g-secondary">
+                        {quote.service_mode}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 font-medium text-g-on-surface">{usd.format(quote.final_usd)}</td>
                   </tr>
                 ))}
+                {!summary && (
+                  <tr>
+                    <td colSpan={4} className="px-5 py-8 text-center text-sm text-g-muted">Loading...</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="font-display text-xl font-semibold text-slate-900">Rate Snapshot</h2>
-          <div className="mt-6 rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-            <p className="text-xs uppercase tracking-[0.2em] text-emerald-700">Current FX</p>
-            <p className="mt-2 font-display text-3xl font-semibold text-emerald-900">
-              {exchangeRate?.currency}/{exchangeRate?.rate_to_krw?.toLocaleString('en-US')} KRW
-            </p>
-            <p className="mt-2 text-sm text-emerald-800">
-              Updated at: {exchangeRate?.updated_at ? new Date(exchangeRate.updated_at).toLocaleString() : '-'}
-            </p>
+        <div className="space-y-4">
+          {/* FX rate */}
+          <div className="g-card">
+            <h2 className="text-base font-medium text-g-on-surface">Rate Snapshot</h2>
+            <div className="mt-4 rounded-2xl border border-g-blue/20 bg-g-blue-container px-5 py-4">
+              <p className="text-xs font-medium text-g-blue">Current FX</p>
+              <p className="mt-2 text-3xl font-light text-g-on-surface">
+                {exchangeRate?.currency} / {exchangeRate?.rate_to_krw?.toLocaleString('en-US')} KRW
+              </p>
+              <p className="mt-2 text-xs text-g-muted">
+                Updated: {exchangeRate?.updated_at ? new Date(exchangeRate.updated_at).toLocaleString() : '-'}
+              </p>
+            </div>
           </div>
 
-          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-            <p className="font-semibold text-slate-800">Operational Guide</p>
-            <ul className="mt-2 space-y-1">
-              <li>1. 신규 요청은 <strong>New Quote</strong> 메뉴에서 입력합니다.</li>
-              <li>2. LCL/FTL 자동 비교 결과를 확인하고 발행합니다.</li>
-              <li>3. 요율 기준 확인은 <strong>Tariff Matrix</strong>에서 조회합니다.</li>
+          {/* Guide */}
+          <div className="g-card">
+            <p className="font-medium text-g-on-surface">Operational Guide</p>
+            <ul className="mt-3 space-y-3">
+              {[
+                '신규 요청은 New Quote 메뉴에서 입력합니다.',
+                'LCL/FTL 자동 비교 결과를 확인하고 발행합니다.',
+                '요율 기준 확인은 Tariff Matrix에서 조회합니다.',
+              ].map((text, i) => (
+                <li key={i} className="flex items-start gap-3 text-sm text-g-secondary">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-g-blue-container text-xs font-medium text-g-blue">
+                    {i + 1}
+                  </span>
+                  {text}
+                </li>
+              ))}
             </ul>
           </div>
         </div>

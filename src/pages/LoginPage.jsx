@@ -17,18 +17,16 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      navigate('/dashboard', { replace: true });
-    }
+    if (isAuthenticated) navigate('/', { replace: true });
   }, [isAuthenticated, navigate]);
 
-  const onSubmit = async (event) => {
-    event.preventDefault();
+  const onSubmit = async (e) => {
+    e.preventDefault();
     setSubmitting(true);
     setError('');
     try {
       await login(email, password);
-      navigate('/dashboard', { replace: true });
+      navigate('/', { replace: true });
     } catch (err) {
       setError(err.message || 'Login failed');
     } finally {
@@ -37,81 +35,80 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-950 px-4 py-10 text-white">
-      <div className="pointer-events-none absolute -top-36 left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-emerald-500/30 blur-3xl" />
+    <div className="flex min-h-screen bg-white">
+      {/* Left panel — branding */}
+      <div className="hidden w-1/2 flex-col justify-between bg-g-surface p-12 lg:flex">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-g-blue">
+            <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+            </svg>
+          </div>
+          <span className="text-base font-medium text-g-on-surface">Operations Hub</span>
+        </div>
 
-      <div className="relative z-10 grid w-full max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-slate-900/90 shadow-2xl lg:grid-cols-2">
-        <section className="bg-slate-900 px-8 py-10 lg:px-12 lg:py-14">
-          <p className="text-sm uppercase tracking-[0.2em] text-emerald-300">Global Inland Freight</p>
-          <h1 className="mt-4 font-display text-4xl font-semibold leading-tight">
-            Instant Inland Quotation for Korea Import Cargo
+        <div>
+          <h1 className="text-4xl font-normal text-g-on-surface leading-tight">
+            Korea Inland Freight<br />Quotation Platform
           </h1>
-          <p className="mt-6 text-sm text-slate-300">
-            Enter cargo dimensions, weight, CBM, and destination. The system auto-selects vehicle class,
-            compares LCL/FTL, applies surcharge/discount, and returns printable quote data.
+          <p className="mt-4 text-base text-g-secondary leading-relaxed">
+            화물 정보를 입력하면 차량 자동 매칭, LCL/FTL 비교,<br />
+            할증 계산을 거쳐 즉시 견적을 발행합니다.
           </p>
 
-          <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-300">Demo JWT accounts</p>
-            <div className="mt-3 space-y-2 text-sm text-slate-100">
-              {demoAccounts.map((account) => (
-                <button
-                  key={account.email}
-                  type="button"
-                  onClick={() => {
-                    setEmail(account.email);
-                    setPassword(account.password);
-                  }}
-                  className="flex w-full items-center justify-between rounded-lg border border-white/10 px-3 py-2 text-left hover:bg-white/10"
-                >
-                  <span className="font-medium">{account.role}</span>
-                  <span className="text-xs text-slate-300">{account.email}</span>
-                </button>
-              ))}
-            </div>
+          <div className="mt-8 space-y-2">
+            <p className="text-xs font-medium text-g-muted">Demo accounts</p>
+            {demoAccounts.map((acc) => (
+              <button key={acc.email} type="button"
+                onClick={() => { setEmail(acc.email); setPassword(acc.password); }}
+                className="flex w-full items-center justify-between rounded-2xl border border-g-outline bg-white px-4 py-3 text-left transition hover:bg-g-surface-hover">
+                <span className="text-sm font-medium text-g-on-surface">{acc.role}</span>
+                <span className="text-xs text-g-muted">{acc.email}</span>
+              </button>
+            ))}
           </div>
-        </section>
+        </div>
 
-        <section className="bg-white px-8 py-10 text-slate-900 lg:px-12 lg:py-14">
-          <h2 className="font-display text-2xl font-semibold">Sign in</h2>
-          <p className="mt-2 text-sm text-slate-600">Use approved partner/admin account to access quotation console.</p>
+        <p className="text-xs text-g-muted">© 2026 Operations Hub</p>
+      </div>
 
-          <form onSubmit={onSubmit} className="mt-8 space-y-5">
-            <label className="block">
-              <span className="text-sm font-medium text-slate-700">Email</span>
-              <input
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none ring-emerald-200 focus:ring"
-                required
-              />
-            </label>
+      {/* Right panel — form */}
+      <div className="flex flex-1 flex-col items-center justify-center px-8 py-12">
+        <div className="w-full max-w-sm">
+          {/* Mobile logo */}
+          <div className="mb-8 flex items-center gap-3 lg:hidden">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-g-blue">
+              <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 0 1-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 0 0-3.213-9.193 2.056 2.056 0 0 0-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 0 0-10.026 0 1.106 1.106 0 0 0-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+              </svg>
+            </div>
+            <span className="text-sm font-medium">Operations Hub</span>
+          </div>
 
-            <label className="block">
-              <span className="text-sm font-medium text-slate-700">Password</span>
-              <input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none ring-emerald-200 focus:ring"
-                required
-              />
-            </label>
+          <h2 className="text-2xl font-normal text-g-on-surface">로그인</h2>
+          <p className="mt-2 text-sm text-g-secondary">승인된 계정으로 접속하세요.</p>
+
+          <form onSubmit={onSubmit} className="mt-8 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-g-on-surface mb-1.5">이메일</label>
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                className="g-input" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-g-on-surface mb-1.5">비밀번호</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                className="g-input" required />
+            </div>
 
             {error && (
-              <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</div>
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">{error}</div>
             )}
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {submitting ? 'Signing in...' : 'Sign in'}
+            <button type="submit" disabled={submitting} className="btn-filled w-full py-3">
+              {submitting ? '로그인 중...' : '로그인'}
             </button>
           </form>
-        </section>
+        </div>
       </div>
     </div>
   );
