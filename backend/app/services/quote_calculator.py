@@ -47,12 +47,19 @@ def parse_cargo_text(raw_text: str) -> dict:
         m = re.search(pattern, lowered)
         return float(m.group(1)) if m else default
 
-    package_count = int(_match(r'(\d+(?:\.\d+)?)\s*(?:pkg|packages|boxes|ctn)', 1))
-    total_weight_kg = _match(r'(\d+(?:\.\d+)?)\s*(?:kg|kgs)', 500)
-    total_cbm = _match(r'(\d+(?:\.\d+)?)\s*(?:cbm|m3)', 3.0)
+    package_count = int(_match(r'(\d+(?:\.\d+)?)\s*(?:pkg|packages|boxes|box|ctns?|박스|개|상자|포장)', 1))
+
+    # Weight: check ton first, then kg
+    ton_m = re.search(r'(\d+(?:\.\d+)?)\s*(?:ton|tons|톤)', lowered)
+    if ton_m:
+        total_weight_kg = float(ton_m.group(1)) * 1000.0
+    else:
+        total_weight_kg = _match(r'(\d+(?:\.\d+)?)\s*(?:kg|kgs|킬로그램|키로|킬로)', 500.0)
+
+    total_cbm = _match(r'(\d+(?:\.\d+)?)\s*(?:cbm|m3|m\^3|루베|입방미터)', 3.0)
 
     lwh = re.search(
-        r'(\d+(?:\.\d+)?)\s*[x*]\s*(\d+(?:\.\d+)?)\s*[x*]\s*(\d+(?:\.\d+)?)\s*(?:cm)?',
+        r'(\d+(?:\.\d+)?)\s*[x*×X]\s*(\d+(?:\.\d+)?)\s*[x*×X]\s*(\d+(?:\.\d+)?)\s*(?:cm|센티|센치)?',
         lowered,
     )
     if lwh:
@@ -60,27 +67,46 @@ def parse_cargo_text(raw_text: str) -> dict:
     else:
         cargo_length_cm, cargo_width_cm, cargo_height_cm = 250.0, 150.0, 160.0
 
-    origin = 'Busan Port' if 'busan' in lowered else 'Incheon Port' if 'incheon' in lowered else 'Busan Port'
+    # Determine origin
+    origin = 'Busan Port'
+    if re.search(r'(부산|busan)', lowered):
+        origin = 'Busan Port'
+    elif re.search(r'(인천항?|incheon)', lowered):
+        origin = 'Incheon Port'
+
+    # Determine destination region
     destination_region = 'Seoul Metro'
-    if 'incheon' in lowered:
-        destination_region = 'Incheon'
-    if 'daejeon' in lowered:
+    if re.search(r'(대전|daejeon)', lowered):
         destination_region = 'Daejeon'
-    if 'gyeonggi' in lowered or 'suwon' in lowered:
+    elif re.search(r'(경기|수원|gyeonggi|suwon)', lowered):
         destination_region = 'Gyeonggi South'
+    elif re.search(r'(인천|incheon)', lowered) and origin != 'Incheon Port':
+        destination_region = 'Incheon'
+    elif re.search(r'(서울|seoul)', lowered):
+        destination_region = 'Seoul Metro'
 
     destination_address = 'Auto parsed destination address'
     for line in text.splitlines():
-        if 'address' in line.lower() or ',' in line:
-            destination_address = line.strip()
+        line_s = line.strip()
+        line_l = line_s.lower()
+        if 'address' in line_l or '주소' in line_l:
+            destination_address = line_s
             break
+    else:
+        for line in text.splitlines():
+            line_s = line.strip()
+            line_l = line_s.lower()
+            if ',' in line_s or any(kw in line_s for kw in ['대로', '길', '동', '구']):
+                if not re.search(r'(cbm|kg|pkg|boxes|박스|개)', line_l):
+                    destination_address = line_s
+                    break
 
     confidence = 0.62
     if lwh:
         confidence += 0.1
-    if re.search(r'(cbm|kg|packages|pkg)', lowered):
+    if re.search(r'(cbm|kg|packages|pkg|박스|개|루베|톤|ctn|m3)', lowered):
         confidence += 0.15
-    if 'busan' in lowered or 'incheon' in lowered:
+    if re.search(r'(busan|incheon|부산|인천|서울|대전|경기)', lowered):
         confidence += 0.08
     confidence = min(round(confidence, 2), 0.95)
 
@@ -128,11 +154,7 @@ def _find_tariff(db: Session, origin: str, destination_region: str, vehicle_id: 
     if tariff:
         return tariff
 
-    fallback = db.query(TariffRate).filter(TariffRate.vehicle_spec_id == vehicle_id).first()
-    if fallback:
-        return fallback
-
-    raise ValueError('No tariff configured for selected vehicle')
+    raise ValueError(f'No tariff configured for route {origin} to {destination_region} with selected vehicle ID {vehicle_id}')
 
 
 def calculate_quote(db: Session, user: User, payload: QuoteInput) -> QuoteCalculationResult:

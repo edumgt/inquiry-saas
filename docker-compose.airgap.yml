@@ -2,24 +2,38 @@
 # Air-gap overlay: overrides the standard docker-compose.yml so that
 # pre-loaded Docker images are used directly without pulling from a registry
 # or building from source.
-#
-# Usage (air-gapped machine, after running scripts/airgap-load.sh):
-#   docker compose -f docker-compose.yml -f docker-compose.airgap.yml up -d
-#
-# The image names (inquiry-backend, inquiry-frontend) match those tagged by
-# airgap-save.sh and declared in docker-compose.yml.
 
 services:
-  db:
+  postgres:
     image: postgres:16-alpine
     pull_policy: never
+    container_name: inquiry-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: inquiry
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   backend:
     image: inquiry-backend
     pull_policy: never
     build: {}
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   frontend:
     image: inquiry-frontend
     pull_policy: never
     build: {}
+
+networks:
+  shared-net:
+    external: false
