@@ -48,7 +48,8 @@ export default function AlbaSettlementPage() {
   const selectedJob = jobs.find((j) => String(j.id) === String(selectedJobId));
 
   const totalSettlement = applications.reduce((sum, app) => {
-    const h = app.worked_hours ?? Number(hours[app.id]) ?? 0;
+    const val = hours[app.id];
+    const h = app.worked_hours ?? (val !== undefined && val !== "" ? Number(val) : 0);
     return sum + (selectedJob ? selectedJob.wage_per_hour * h : 0);
   }, 0);
 

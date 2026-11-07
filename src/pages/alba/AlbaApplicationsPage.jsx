@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { apiRequest } from '../../lib/api';
@@ -28,19 +28,19 @@ export default function AlbaApplicationsPage() {
     apiRequest('/alba/jobs', {}, token).then(setJobs).catch(() => {});
   }, [token]);
 
-  const loadApplications = (jobId) => {
+  const loadApplications = useCallback((jobId) => {
     if (!jobId) return;
     setLoadingApps(true);
     apiRequest(`/alba/jobs/${jobId}/applications`, {}, token)
       .then(setApplications)
       .catch((err) => setError(err.message))
       .finally(() => setLoadingApps(false));
-  };
+  }, [token]);
 
   useEffect(() => {
     if (selectedJobId) loadApplications(selectedJobId);
     else setApplications([]);
-  }, [selectedJobId, token]);
+  }, [selectedJobId, loadApplications]);
 
   const updateStatus = async (appId, status) => {
     setUpdating(appId);

@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -16,13 +17,9 @@ from app.schemas import (
     AlbaJobResponse,
     AlbaJobUpdate,
 )
+from app.utils import generate_unique_job_no
 
 router = APIRouter(prefix='/alba', tags=['alba'])
-
-
-def _gen_job_no(db: Session) -> str:
-    count = db.query(func.count(AlbaJob.id)).scalar() or 0
-    return f'ALB-{datetime.now(UTC).strftime("%y%m%d")}-{count + 1:04d}'
 
 
 @router.get('/dashboard', response_model=AlbaDashboardSummary)
@@ -33,18 +30,28 @@ def alba_dashboard(
     total_jobs = db.query(func.count(AlbaJob.id)).scalar() or 0
     open_jobs = db.query(func.count(AlbaJob.id)).filter(AlbaJob.status == 'open').scalar() or 0
     total_applications = db.query(func.count(AlbaApplication.id)).scalar() or 0
-    accepted = (
-        db.query(AlbaApplication)
+    accepted_count = (
+        db.query(func.count(AlbaApplication.id))
         .filter(AlbaApplication.status == 'accepted')
-        .all()
+        .scalar()
+        or 0
     )
-    accepted_count = len(accepted)
 
-    total_settlement = 0
-    for app in accepted:
-        job = db.query(AlbaJob).filter(AlbaJob.id == app.job_id).first()
-        if job and app.worked_hours:
-            total_settlement += int(job.wage_per_hour * app.worked_hours)
+    total_settlement = (
+        db.query(
+            func.coalesce(
+                func.sum(AlbaJob.wage_per_hour * AlbaApplication.worked_hours),
+                0,
+            )
+        )
+        .select_from(AlbaApplication)
+        .join(AlbaJob, AlbaJob.id == AlbaApplication.job_id)
+        .filter(
+            AlbaApplication.status == 'accepted',
+            AlbaApplication.worked_hours.isnot(None),
+        )
+        .scalar()
+    ) or 0
 
     recent_jobs = (
         db.query(AlbaJob).order_by(AlbaJob.created_at.desc()).limit(5).all()
@@ -55,7 +62,7 @@ def alba_dashboard(
         open_jobs=open_jobs,
         total_applications=total_applications,
         accepted_applications=accepted_count,
-        total_settlement_krw=total_settlement,
+        total_settlement_krw=int(total_settlement),
         recent_jobs=recent_jobs,
     )
 
@@ -74,15 +81,25 @@ def create_job(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> AlbaJobResponse:
-    job = AlbaJob(
-        job_no=_gen_job_no(db),
-        created_by=current_user.id,
-        **payload.model_dump(),
-    )
-    db.add(job)
-    db.commit()
-    db.refresh(job)
-    return job
+    max_retries = 5
+    for attempt in range(max_retries):
+        job_no = generate_unique_job_no(db)
+        job = AlbaJob(
+            job_no=job_no,
+            created_by=current_user.id,
+            **payload.model_dump(),
+        )
+        try:
+            db.add(job)
+            db.commit()
+            db.refresh(job)
+            return job
+        except IntegrityError:
+            db.rollback()
+            if attempt == max_retries - 1:
+                raise HTTPException(status_code=500, detail='Failed to generate unique job number. Please retry.')
+
+    raise HTTPException(status_code=500, detail='Failed to create job')
 
 
 @router.get('/jobs/{job_id}', response_model=AlbaJobResponse)
@@ -135,10 +152,13 @@ def delete_job(
 def list_applications(
     job_id: int,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> list[AlbaApplicationResponse]:
-    if not db.query(AlbaJob).filter(AlbaJob.id == job_id).first():
+    job = db.query(AlbaJob).filter(AlbaJob.id == job_id).first()
+    if not job:
         raise HTTPException(status_code=404, detail='Job not found')
+    if current_user.role != 'admin' and job.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail='Not allowed to view applications for this job')
     return (
         db.query(AlbaApplication)
         .filter(AlbaApplication.job_id == job_id)
@@ -171,11 +191,14 @@ def update_application(
     app_id: int,
     payload: AlbaApplicationUpdate,
     db: Session = Depends(get_db),
-    _: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> AlbaApplicationResponse:
     app = db.query(AlbaApplication).filter(AlbaApplication.id == app_id).first()
     if not app:
         raise HTTPException(status_code=404, detail='Application not found')
+    job = db.query(AlbaJob).filter(AlbaJob.id == app.job_id).first()
+    if current_user.role != 'admin' and (not job or job.created_by != current_user.id):
+        raise HTTPException(status_code=403, detail='Not allowed to modify applications for this job')
     for field, value in payload.model_dump(exclude_none=True).items():
         setattr(app, field, value)
     db.commit()

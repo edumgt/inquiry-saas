@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -6,7 +8,16 @@ from app.db import Base, SessionLocal, engine
 from app.routers import admin, alba, auth, dashboard, quotes, reference
 from app.seed import seed_data
 
-app = FastAPI(title=settings.project_name)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    with SessionLocal() as db:
+        seed_data(db)
+    yield
+
+
+app = FastAPI(title=settings.project_name, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -15,13 +26,6 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
-
-
-@app.on_event('startup')
-def on_startup() -> None:
-    Base.metadata.create_all(bind=engine)
-    with SessionLocal() as db:
-        seed_data(db)
 
 
 @app.get('/healthz')

@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -9,7 +9,7 @@ from app.deps import get_current_user
 from app.models import Quote, User
 from app.schemas import QuoteCreateRequest, QuoteParseRequest, QuoteParseResponse, QuoteResponse
 from app.services.quote_calculator import QuoteInput, calculate_quote, parse_cargo_text
-from app.utils import generate_quote_no
+from app.utils import generate_unique_quote_no
 
 router = APIRouter(prefix='/quotes', tags=['quotes'])
 
@@ -51,34 +51,43 @@ def calculate_and_create_quote(
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    sequence = db.query(func.count(Quote.id)).scalar() or 0
-    quote = Quote(
-        quote_no=generate_quote_no(sequence + 1),
-        user_id=current_user.id,
-        origin=payload.origin,
-        destination_region=payload.destination_region,
-        destination_address=payload.destination_address,
-        package_count=payload.package_count,
-        total_weight_kg=payload.total_weight_kg,
-        total_cbm=payload.total_cbm,
-        cargo_length_cm=payload.cargo_length_cm,
-        cargo_width_cm=payload.cargo_width_cm,
-        cargo_height_cm=payload.cargo_height_cm,
-        recommended_vehicle_id=result.recommended_vehicle.id,
-        service_mode=result.service_mode,
-        subtotal_usd=result.subtotal_usd,
-        surcharge_usd=result.surcharge_usd,
-        discount_usd=result.discount_usd,
-        final_usd=result.final_usd,
-        final_krw=result.final_krw,
-        pricing_breakdown=result.pricing_breakdown,
-        status='issued',
-        created_at=datetime.now(UTC),
-    )
-    db.add(quote)
-    db.commit()
-    db.refresh(quote)
-    return quote
+    max_retries = 5
+    for attempt in range(max_retries):
+        quote_no = generate_unique_quote_no(db)
+        quote = Quote(
+            quote_no=quote_no,
+            user_id=current_user.id,
+            origin=payload.origin,
+            destination_region=payload.destination_region,
+            destination_address=payload.destination_address,
+            package_count=payload.package_count,
+            total_weight_kg=payload.total_weight_kg,
+            total_cbm=payload.total_cbm,
+            cargo_length_cm=payload.cargo_length_cm,
+            cargo_width_cm=payload.cargo_width_cm,
+            cargo_height_cm=payload.cargo_height_cm,
+            recommended_vehicle_id=result.recommended_vehicle.id,
+            service_mode=result.service_mode,
+            subtotal_usd=result.subtotal_usd,
+            surcharge_usd=result.surcharge_usd,
+            discount_usd=result.discount_usd,
+            final_usd=result.final_usd,
+            final_krw=result.final_krw,
+            pricing_breakdown=result.pricing_breakdown,
+            status='issued',
+            created_at=datetime.now(UTC),
+        )
+        try:
+            db.add(quote)
+            db.commit()
+            db.refresh(quote)
+            return quote
+        except IntegrityError:
+            db.rollback()
+            if attempt == max_retries - 1:
+                raise HTTPException(status_code=500, detail='Failed to generate a unique quote number. Please retry.')
+
+    raise HTTPException(status_code=500, detail='Failed to create quote')
 
 
 @router.post('/parse-text', response_model=QuoteParseResponse)
